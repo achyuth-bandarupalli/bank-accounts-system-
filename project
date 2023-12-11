@@ -1,0 +1,314 @@
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <vector> 
+using namespace std;
+class Account {
+public:
+    int accNumber;
+    string accHolderName;
+    double balance;
+    int pin;
+
+    void display() const {
+        cout << setw(20) << accHolderName << setw(20) << accNumber << setw(20) << balance << endl;
+    }
+};
+
+class Bank {
+private:
+    vector<Account> accounts;        //This vector is used to manage and store multiple instances of bank accounts 
+    const string adminPassword = "admin";
+
+    bool verifyAdmin() const {
+        string inputPassword;
+        cout << "\n\n\tEnter Admin Password: ";
+        cin >> inputPassword;
+        return (inputPassword == adminPassword);
+    }
+
+    bool verifyPin(int enteredPin, const Account &acc) const {
+        return (enteredPin == acc.pin);
+    }
+
+    void saveAccountsToFile() const {
+        ofstream outFile("accounts.txt");
+
+        for (const Account &acc : accounts) {
+            outFile << acc.accNumber << " " << acc.accHolderName << " " << acc.balance << " " << acc.pin << endl;
+        }
+    }
+
+    void loadAccountsFromFile() {
+        ifstream inFile("accounts.txt");
+
+        while (!inFile.eof())   // Create an 'Account' object
+		 {    
+            Account acc;
+            inFile >> acc.accNumber >> acc.accHolderName >> acc.balance >> acc.pin; // Read account details from the file
+
+            if (inFile.fail()) {
+                break;
+            }
+
+            accounts.push_back(acc);
+        }
+        inFile.close();
+    }
+
+    int generateAccountNumber() {
+        static int accNumber = 10001;
+        return accNumber++;
+    }
+
+public:
+    Bank() {																								
+        loadAccountsFromFile();
+    }
+
+    void createAccount() {
+        Account newAccount;
+
+        cout << "\n\n\tEnter Account Holder Name: ";
+       cin.ignore();
+        getline(cin, newAccount.accHolderName);
+
+        cout << "\n\tEnter 4-digit PIN: ";
+        cin >> newAccount.pin;
+
+        cout << "\n\tRe-enter 4-digit PIN: ";
+        int reenteredPin;
+        cin >> reenteredPin;
+
+        if (newAccount.pin != reenteredPin) {
+            cout << "\n\tPINs do not match. Account creation failed.\n";
+            return;
+        }
+
+        newAccount.accNumber = generateAccountNumber();
+        newAccount.balance = 0;
+
+        accounts.push_back(newAccount);
+
+        saveAccountsToFile();
+
+        cout << "\n\tAccount created successfully!\n";
+        cout << "\n\tAccount Number: " << newAccount.accNumber << "\n";
+    }
+
+    void depositAmount() {
+        int accNumber, pin;
+        double amount;
+
+        cout << "\n\n\tEnter Account Number: ";
+        cin >> accNumber;
+
+        for (Account &acc : accounts) {
+            if (acc.accNumber == accNumber) {
+                cout << "\n\tEnter PIN: ";
+                cin >> pin;
+
+                if (!verifyPin(pin, acc)) {
+                    cout << "\n\tWrong PIN. Deposit failed.\n";
+                    return;
+                }
+
+                cout << "\n\tEnter Deposit Amount: ";
+                cin >> amount;
+                acc.balance += amount;
+
+                saveAccountsToFile();
+
+                cout << "\n\tAmount deposited successfully!\n";
+                cout << "\n\tUpdated Balance: $" << acc.balance << "\n";
+                return;
+            }
+        }
+
+        cout << "\n\tAccount not found.\n";
+    }
+
+    void withdrawAmount() {
+        int accNumber, pin;
+        double amount;
+
+        cout << "\n\n\tEnter Account Number: ";
+        cin >> accNumber;
+
+        for (Account &acc : accounts) {
+            if (acc.accNumber == accNumber) {
+                cout << "\n\tEnter PIN: ";
+                cin >> pin;
+
+                if (!verifyPin(pin, acc)) {
+                    cout << "\n\tWrong PIN. Withdrawal failed.\n";
+                    return;
+                }
+
+                cout << "\n\tEnter Withdrawal Amount: ";
+                cin >> amount;
+
+                if (amount > acc.balance) {
+                    cout << "\n\tInsufficient funds. Withdrawal failed.\n";
+                    return;
+                }
+
+                acc.balance -= amount;
+
+                saveAccountsToFile();
+
+                cout << "\n\tAmount withdrawn successfully!\n";
+                cout << "\n\tUpdated Balance: $" << acc.balance << "\n";
+                return;
+            }
+        }
+
+        cout << "\n\tAccount not found.\n";
+    }
+
+    void balanceEnquiry() const {
+        int accNumber;
+
+        cout << "\n\n\tEnter Account Number: ";
+        cin >> accNumber;
+
+        for (const Account &acc : accounts) {
+            if (acc.accNumber == accNumber) {
+                cout << "\n\tAccount Holder: " << acc.accHolderName;
+                cout << "\n\tAccount Number: " << acc.accNumber;
+                cout << "\n\tBalance: $" << acc.balance << "\n";
+                return;
+            }
+        }
+
+        cout << "\n\tAccount not found.\n";
+    }
+
+    void listAllAccounts() const {
+        if (accounts.empty()) {
+            cout << "\n\tNo accounts found.\n";
+            return;
+        }
+
+        if (!verifyAdmin()) {
+            cout << "\n\tAccess denied. Wrong admin password.\n";
+            return;
+        }
+
+        cout << "\n\n\tALL ACCOUNT HOLDERS LIST\n";
+        cout << setw(20) << "Account Holder" << setw(20) << "Account Number" << setw(20) << "Balance" << endl;
+
+        for (const Account &acc : accounts) {
+            acc.display();
+        }
+    }
+
+    void closeAccount() {
+        int accNumber;
+
+        cout << "\n\n\tEnter Account Number to Close: ";
+        cin >> accNumber;
+
+        auto it = accounts.begin();
+        while (it != accounts.end()) {
+            if (it->accNumber == accNumber) {
+                it = accounts.erase(it);
+
+                saveAccountsToFile();
+
+                cout << "\n\tAccount closed successfully!\n";
+                return;
+            } else {
+                ++it;
+            }
+        }
+
+        cout << "\n\tAccount not found.\n";
+    }
+
+    void modifyAccount() {
+        int accNumber;
+
+        cout << "\n\n\tEnter Account Number to Modify: ";
+        cin >> accNumber;
+
+        for (Account &acc : accounts) {
+            if (acc.accNumber == accNumber) {
+                cout << "\n\tEnter New Account Holder Name: ";
+                cin.ignore();
+                getline(cin, acc.accHolderName);
+
+                saveAccountsToFile();
+
+                cout << "\n\tAccount modified successfully!\n";
+                return;
+            }
+        }
+
+        cout << "\n\tAccount not found.\n";
+    }
+};
+
+int main() {
+    Bank bank;
+    int choice;
+   
+    cout << "\n";
+    cout << "SSSSSSSS     TTTTTTTT    UU      UU    DDDDDDD       EEEEEEE    NNN      NN    TTTTTTT\n";
+    cout << "SS              T        UU      UU    DD     DD     EE         NN NN    NN       T\n";
+    cout << "SSSSSSSS        T        UU      UU    DD      DD    EEEEEEE    NN   NN  NN       T\n";
+    cout << "      SS        T        UU      UU    DD      DD    EE         NN    NN NN       T\n";
+    cout << "SSSSSSSS        T          UUUUUUU     DDDDDDDD      EEEEEEE    NN      NNN       T\n";
+    cout << "\n";
+    cout << " BBBBBBB       AAAAA        NNN     NN       KK   KKK\n";
+    cout << " BB     BB   AA     AA      NN NN   NN       KK KKKK\n";
+    cout << " BBBBBBB     AAAAAAAAAA     NN   NN NN       KKK\n";
+    cout << " BB     BB  AA        AA    NN     NNN       KK KKKK\n";
+    cout << " BBBBBBB   AA          AA   NN      NN       KK   KKK\n";
+    cout << "\n";
+
+
+    do {
+        cout << "\n\n\n\tMAIN MENU";
+        cout << "\n\n\t01. NEW ACCOUNT";
+        cout << "\n\n\t02. DEPOSIT AMOUNT";
+        cout << "\n\n\t03. WITHDRAW AMOUNT";
+        cout << "\n\n\t04. BALANCE ENQUIRY";
+        cout << "\n\n\t05. ALL ACCOUNT HOLDER LIST";
+        cout << "\n\n\t06. CLOSE AN ACCOUNT";
+        cout << "\n\n\t07. MODIFY AN ACCOUNT";
+        cout << "\n\n\t08. EXIT";
+        cout << "\n\n\tSelect Your Option (1-8) ";
+        cin >> choice;
+
+        switch (choice) {
+        case 1:
+            bank.createAccount();
+            break;
+        case 2:
+            bank.depositAmount();
+            break;
+        case 3:
+            bank.withdrawAmount();
+            break;
+        case 4:
+            bank.balanceEnquiry();
+            break;
+        case 5:
+            bank.listAllAccounts();
+            break;
+        case 6:
+            bank.closeAccount();
+            break;
+        case 7:
+            bank.modifyAccount();
+            break;
+        case 8:
+            cout << "\n\tExiting the program. Goodbye!\n";
+            break;
+        default:
+            cout << "\n\tInvalid option. Please enter a number between 1 and 8.\n";
+        }
+    } while (choice != 8);
+    return 0;
+}
